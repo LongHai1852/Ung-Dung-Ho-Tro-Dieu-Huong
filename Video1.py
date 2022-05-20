@@ -11,15 +11,15 @@ import time
 
 import threading
 
-def do_canny(frame):
+def canny1(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    # Applies Canny edge detector with minVal of 50 and maxVal of 150
+    # su dung bo loc canh canny voi nguong tu 50 den 150
     canny = cv2.Canny(blur, 50, 150)
     return canny
 
 
-def do_segment(frame):
+def segment1(frame):
     height = frame.shape[0]
     # tao hinh tam giac (goc trai, goc phai, goc tren cung)
     polygons = np.array([
@@ -28,20 +28,18 @@ def do_segment(frame):
     ])
     # tao anh co kich thuong giong frame va co cac pixel = 0
     mask = np.zeros_like(frame)
-    # Allows the mask to be filled with values of 1 and the other areas to be filled with values of 0
     cv2.fillPoly(mask, polygons, 255)
-    # A bitwise and operation between the mask and frame keeps only the triangular area of the frame
     segment = cv2.bitwise_and(frame, mask)
     return segment
 
 
-def calculate_lines(frame, lines):
+def find_lines(frame, lines):
     left = []
     right = []
     for line in lines:
-        # Reshapes line from 2D array to 1D array
+        # x1, y1, x2, y2 la toa do cua 2 line duong
         x1, y1, x2, y2 = line.reshape(4)
-        # Fits a linear polynomial to the x and y coordinates and returns a vector of coefficients which describe the slope and y-intercept
+        # Tim slope and y-intercept cua 2 vach ke duong
         parameters = np.polyfit((x1, x2), (y1, y2), 1)
         slope = parameters[0]
         y_intercept = parameters[1]
@@ -54,12 +52,12 @@ def calculate_lines(frame, lines):
     left_avg = np.average(left, axis=0)
     right_avg = np.average(right, axis=0)
     # Tim toa do x1, y1, x2, y2 cua vach trai va vach phai
-    left_line = calculate_coordinates(frame, left_avg)
-    right_line = calculate_coordinates(frame, right_avg)
+    left_line = lines_coordinates(frame, left_avg)
+    right_line = lines_coordinates(frame, right_avg)
     return np.array([left_line, right_line])
 
 
-def calculate_coordinates(frame, parameters):
+def lines_coordinates(frame, parameters):
     slope, intercept = parameters
     y1 = frame.shape[0]
     # sets y2 co toa do cach y1 160 pixel
@@ -74,9 +72,7 @@ def calculate_coordinates(frame, parameters):
 
 
 def visualize_lines(frame, lines):
-    # Creates an image filled with zero intensities with the same dimensions as the frame
     lines_visualize = np.zeros_like(frame)
-    # Checks if any lines are detected
     if lines is not None:
         for x1, y1, x2, y2 in lines:
             # ve line giua 2 toa do, voi mau xanh va do lon = 2 pixel
@@ -115,11 +111,11 @@ def tonghop(image):
 
     image_center = 411
 
-    canny = do_canny(frame)
+    canny = canny1(frame)
     # cv2.imshow('ad',canny)
     # plt.imshow(canny)
     # plt.show()
-    segment = do_segment(canny)
+    segment = segment1(canny)
     # cv2.imshow('ad',segment)
     # plt.imshow(segment)
     # plt.show()
@@ -129,7 +125,7 @@ def tonghop(image):
     # Tim toa do line trai va phai bang cach tinh trung binh slope va intercept cua cac line trai hoac phai
     # print('hou', hough)
     # print("type hough", type(hough))
-    lines = calculate_lines(frame, hough)
+    lines = find_lines(frame, hough)
 
     P = lines[0][0:2]
     Q = lines[0][2:4]
@@ -145,12 +141,12 @@ def tonghop(image):
 
     # Visualizes the lines
     lines_visualize = visualize_lines(frame, lines)
+    # print(lines_visualize.shape)
+    # lines_visualize = cv2.resize(lines_visualize, (512, 256))
+    # frame = cv2.resize(frame, (512, 256))
 
-    lines_visualize = cv2.resize(lines_visualize, (512, 256))
-    frame = cv2.resize(frame, (512, 256))
-
-    lines_visualize = cv2.circle(lines_visualize, (int(left_lane_pos*2), Y*2), radius=0, color=(0, 0, 255), thickness=8*2)
-    lines_visualize = cv2.circle(lines_visualize, (int(right_lane_pos*2), Y*2), radius=0, color=(0, 0, 255), thickness=8*2)
+    lines_visualize = cv2.circle(lines_visualize, (int(left_lane_pos), Y), radius=0, color=(0, 0, 255), thickness=8*2)
+    lines_visualize = cv2.circle(lines_visualize, (int(right_lane_pos), Y), radius=0, color=(0, 0, 255), thickness=8*2)
     # cv2_imshow(lines_visualize)
     # cv2.imwrite("./lines_visualize.jpg", lines_visualize);
     #print('')
@@ -161,12 +157,12 @@ def tonghop(image):
     cv2.putText(result, turnpredict, (50, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
 
     lane_center = left_lane_pos + (right_lane_pos - left_lane_pos) / 2
-    # print(lane_center)
+    print(int(lane_center), Y)
     # print(int(lane_center))
 
-    result = cv2.circle(result, (int(lane_center*2), Y*2), radius=0, color=(0, 255, 0),
+    result = cv2.circle(result, (int(lane_center), int(Y)), radius=0, color=(0, 255, 0),
                         thickness=8*2)
-    result = cv2.circle(result, (int(image_center*2), Y*2), radius=0, color=(255, 0, 0),
+    result = cv2.circle(result, (int(image_center), Y), radius=0, color=(255, 0, 0),
                         thickness=8*2)
 
     # cv2.imwrite("./output.jpg", output);
@@ -181,7 +177,7 @@ def tonghop(image):
     # cv2.imwrite("./result.jpg", result);
 
     # right_lane_pos, left_lane_pos vị trí x1, x2  tìm được ở trước đó
-
+    result = cv2.resize(result, (512, 256))
     return result
 
 def select_video():
